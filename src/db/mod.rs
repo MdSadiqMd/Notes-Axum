@@ -1,3 +1,3 @@
 mod db;
 
-pub use db::connect;
+pub use db::{connect, AppState};

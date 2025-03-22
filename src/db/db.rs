@@ -1,10 +1,15 @@
 use dotenv::dotenv;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
-pub async fn connect() {
+pub struct AppState {
+    pub db: Pool<Postgres>,
+}
+
+pub async fn connect() -> Pool<Postgres> {
     dotenv().ok();
-    let database_url = std::env::var("DATABASE_URL").expect("Database URL expected");
-    let pool = match PgPoolOptions::new()
+
+    let database_url = std::env::var("DATABASE_URL").expect("Database Url not found");
+    match PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
         .await
@@ -17,5 +22,5 @@ pub async fn connect() {
             println!("🔥 Failed to Connect to Database: {:?}", err);
             std::process::exit(1)
         }
-    };
+    }
 }
