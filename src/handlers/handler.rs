@@ -1,4 +1,9 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -52,6 +57,36 @@ pub async fn create_note(
                     "message": format!("{:?}", err)
                 })),
             ));
+        }
+    }
+}
+
+pub async fn get_notes(
+    Path(id): Path<uuid::Uuid>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let query_result: Result<NoteModel, sqlx::Error> =
+        sqlx::query_as("SELECT * FROM notes WHERE id=$1")
+            .bind(id)
+            .fetch_one(&data.db)
+            .await;
+
+    match query_result {
+        Ok(note) => {
+            let note_response = serde_json::json!({
+                    "status": "200",
+                    "data": serde_json::json!({
+                    "note": note
+                })
+            });
+            return Ok(Json(note_response));
+        }
+        Err(_) => {
+            let error_response = serde_json::json!({
+                "status": "500",
+                "message": format!("Note with ID: {} not found", id)
+            });
+            return Err((StatusCode::NOT_FOUND, Json(error_response)));
         }
     }
 }
