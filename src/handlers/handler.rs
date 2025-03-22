@@ -6,3 +6,7 @@ pub async fn get_health() -> impl IntoResponse {
         "message":"Up and Running really fast"
     }));
 }
+
+pub async fn create_note() -> impl IntoResponse{
+    
+}

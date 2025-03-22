@@ -10,6 +10,7 @@ mod db;
 mod handlers;
 mod model;
 mod routes;
+mod schema;
 
 #[tokio::main]
 async fn main() {
