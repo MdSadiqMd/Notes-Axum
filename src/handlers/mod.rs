@@ -1,3 +1,3 @@
 mod handler;
 
-pub use handler::{create_note, get_health, get_notes};
+pub use handler::{create_note, get_all_notes, get_health, get_note};

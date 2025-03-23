@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
@@ -7,7 +7,11 @@ use axum::{
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::{db::AppState, model::NoteModel, schema::CreateNoteSchema};
+use crate::{
+    db::AppState,
+    model::NoteModel,
+    schema::{CreateNoteSchema, FilterOptions},
+};
 
 pub async fn get_health() -> impl IntoResponse {
     return Json(serde_json::json!({
@@ -61,7 +65,7 @@ pub async fn create_note(
     }
 }
 
-pub async fn get_notes(
+pub async fn get_note(
     Path(id): Path<uuid::Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -89,4 +93,36 @@ pub async fn get_notes(
             return Err((StatusCode::NOT_FOUND, Json(error_response)));
         }
     }
+}
+
+pub async fn get_all_notes(
+    opts: Option<Query<FilterOptions>>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let Query(opts) = opts.unwrap_or_default();
+
+    let limit = opts.limit.unwrap_or(10);
+    let offset = (opts.page.unwrap_or(1) - 1) * limit;
+
+    let query_result = sqlx::query_as("SELECT * FROM notes ORDER by id LIMIT $1 OFFSET $2")
+        .bind(limit as i32)
+        .bind(offset as i32)
+        .fetch_one(&data.db)
+        .await;
+
+    if query_result.is_err() {
+        let error_response = serde_json::json!({
+            "status": "500",
+            "message": "Something bad happened while fetching all note items",
+        });
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
+    }
+
+    let notes: NoteModel = query_result.unwrap();
+    let json_response = serde_json::json!({
+        "status": "200",
+        "results": notes.title.len(),
+        "notes": notes
+    });
+    Ok(Json(json_response))
 }
