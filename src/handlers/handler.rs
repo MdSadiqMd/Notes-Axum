@@ -182,3 +182,36 @@ pub async fn update_note(
         }
     }
 }
+
+pub async fn delete_note(
+    Path(id): Path<uuid::Uuid>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let query_result: Result<NoteModel, sqlx::Error> =
+        sqlx::query_as("DELETE FROM notes WHERE id = $1 RETURNING *")
+            .bind(id)
+            .fetch_one(&data.db)
+            .await;
+
+    match query_result {
+        Ok(note) => {
+            return Ok(Json({
+                serde_json::json!({
+                    "status":"200",
+                    "message":serde_json::json!({
+                        "note":note
+                    })
+                })
+            }));
+        }
+        Err(err) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "500",
+                    "message": format!("{:?}", err)
+                })),
+            ));
+        }
+    }
+}
