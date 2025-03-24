@@ -6,7 +6,6 @@ use axum::{
 };
 use serde_json::json;
 use std::sync::Arc;
-use tokio::sync::futures::Notified;
 
 use crate::{
     db::AppState,

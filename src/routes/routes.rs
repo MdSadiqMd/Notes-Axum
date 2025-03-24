@@ -15,6 +15,6 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/create", post(post(create_note)))
         .route("/api/note/:id", get(get(get_note)))
         .route("/api/notes", get(get(get_all_notes)))
-        .route("/api/note/:id", post(patch(update_note)))
+        .route("/api/notes/:id", patch(patch(update_note)))
         .with_state(app_state)
 }

@@ -1,3 +1,3 @@
 mod schema;
 
-pub use schema::{CreateNoteSchema, FilterOptions, ParamOptions, UpdateNoteSchema};
+pub use schema::{CreateNoteSchema, FilterOptions, UpdateNoteSchema};
