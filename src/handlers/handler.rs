@@ -6,11 +6,12 @@ use axum::{
 };
 use serde_json::json;
 use std::sync::Arc;
+use tokio::sync::futures::Notified;
 
 use crate::{
     db::AppState,
     model::NoteModel,
-    schema::{CreateNoteSchema, FilterOptions},
+    schema::{CreateNoteSchema, FilterOptions, UpdateNoteSchema},
 };
 
 pub async fn get_health() -> impl IntoResponse {
@@ -125,4 +126,60 @@ pub async fn get_all_notes(
         "notes": notes
     });
     Ok(Json(json_response))
+}
+
+pub async fn update_note(
+    Path(id): Path<uuid::Uuid>,
+    State(data): State<Arc<AppState>>,
+    Json(body): Json<UpdateNoteSchema>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let query_result: Result<NoteModel, sqlx::Error> =
+        sqlx::query_as::<_, NoteModel>("SELECT * FROM notes WHERE id = $1")
+            .bind(id)
+            .fetch_one(&data.db)
+            .await;
+
+    if query_result.is_err() {
+        let error_response = serde_json::json!({
+            "status": "500",
+            "message": format!("Note with ID: {} not found", id)
+        });
+        return Err((StatusCode::NOT_FOUND, Json(error_response)));
+    };
+
+    let now = chrono::Utc::now();
+    let note = query_result.unwrap();
+    let query_result: Result<NoteModel, sqlx::Error> = sqlx::query_as::<_, NoteModel>(
+        "UPDATE notes SET title = $1, content = $2, category = $3, published = $4, updated_at = $5 WHERE id = $6 RETURNING *"
+    )
+        .bind(body.title.to_owned().unwrap_or(note.title))
+        .bind(body.content.to_owned().unwrap_or(note.content))
+        .bind(body.category.to_owned().unwrap_or(note.category.unwrap()))
+        .bind(body.published.unwrap_or(note.published.unwrap().to_string()))
+        .bind(now)
+        .bind(id)
+        .fetch_one(&data.db)
+        .await;
+
+    match query_result {
+        Ok(note) => {
+            return Ok(Json({
+                serde_json::json!({
+                    "status":"200",
+                    "message":serde_json::json!({
+                        "note":note
+                    })
+                })
+            }));
+        }
+        Err(err) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "500",
+                    "message": format!("{:?}", err)
+                })),
+            ));
+        }
+    }
 }
